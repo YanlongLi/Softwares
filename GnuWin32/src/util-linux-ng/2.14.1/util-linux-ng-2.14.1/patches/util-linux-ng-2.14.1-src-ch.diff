@@ -1,0 +1,168 @@
+--- util-linux-ng-2.14.1-orig/include/widechar.h	2008-05-29 01:01:02.000000000 +0200
++++ util-linux-ng-2.14.1-src/include/widechar.h	2008-09-27 17:59:16.187500000 +0200
+@@ -6,6 +6,9 @@
+ 
+ # include <wchar.h>
+ # include <wctype.h>
++# ifdef _WIN32
++# define wcwidth(c) 1
++# endif /* _WIN32  */
+ 
+ #else /* !HAVE_WIDECHAR */
+ 
+--- util-linux-ng-2.14.1-orig/misc-utils/ddate.c	2008-06-09 12:49:40.000000000 +0200
++++ util-linux-ng-2.14.1-src/misc-utils/ddate.c	2008-09-28 00:48:21.531250000 +0200
+@@ -63,6 +63,13 @@
+ #include <stdio.h>
+ #include "nls.h"
+ 
++#ifndef HAVE_RANDOM
++#define	random	rand
++#endif /* HAVE_RANDOM */
++#ifndef HAVE_SRANDOM
++#define	srandom	srand
++#endif /* HAVE_SRANDOM */
++
+ #ifndef __GNUC__
+ #define inline /* foo */
+ #endif
+--- util-linux-ng-2.14.1-orig/misc-utils/whereis.c	2008-09-10 11:02:43.000000000 +0200
++++ util-linux-ng-2.14.1-src/misc-utils/whereis.c	2008-09-28 00:51:46.890625000 +0200
+@@ -38,7 +38,13 @@
+  */
+ 
+ #include <sys/param.h>
++#ifdef HAVE_SYS_DIR_H
+ #include <sys/dir.h>
++#endif /* HAVE_SYS_DIR_H */
++#ifdef HAVE_DIRENT_H
++#include <dirent.h>
++#define direct		dirent
++#endif /* HAVE_DIRENT_H */
+ #include <sys/stat.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -46,6 +52,10 @@
+ #include <ctype.h>
+ #include "nls.h"
+ 
++#ifndef HAVE_INDEX
++#define index		strchr
++#endif /* HAVE_INDEX */
++
+ void zerof(void);
+ void getlist(int *, char ***, char ***, int *);
+ void lookup(char *);
+--- util-linux-ng-2.14.1-orig/text-utils/colcrt.c	2007-04-25 14:43:38.000000000 +0200
++++ util-linux-ng-2.14.1-src/text-utils/colcrt.c	2008-09-28 00:52:58.000000000 +0200
+@@ -46,6 +46,13 @@
+ 
+ #include "widechar.h"
+ 
++#ifndef HAVE_BCOPY
++# define bcopy(s,d,n)		(_memccpy((d),(s),0,n))
++#endif /* HAVE_BCOPY */
++#ifndef HAVE_BZERO
++# define bzero(b,len) 		(memset((b),0,(len)),(void)0)
++#endif /* HAVE_BZERO */
++
+ int plus(wchar_t c, wchar_t d);
+ void move(int l, int m);
+ void pflush(int ol);
+--- util-linux-ng-2.14.1-orig/text-utils/display.c	2008-05-29 01:01:02.000000000 +0200
++++ util-linux-ng-2.14.1-src/text-utils/display.c	2008-09-27 19:07:45.000000000 +0200
+@@ -302,7 +302,7 @@ int next(char **argv)
+ 	}
+ 	for (;;) {
+ 		if (*_argv) {
+-			if (!(freopen(*_argv, "r", stdin))) {
++			if (!(freopen(*_argv, "rb", stdin))) {
+ 				(void)fprintf(stderr, "hexdump: %s: %s\n",
+ 				    *_argv, strerror(errno));
+ 				exitval = 1;
+--- util-linux-ng-2.14.1-orig/text-utils/hexdump.h	2007-04-25 14:43:38.000000000 +0200
++++ util-linux-ng-2.14.1-src/text-utils/hexdump.h	2008-09-28 01:11:15.000000000 +0200
+@@ -33,6 +33,26 @@
+  *	@(#)hexdump.h	5.4 (Berkeley) 6/1/90
+  */
+ 
++#ifndef HAVE_U_INT
++#include <stdint.h>
++typedef uint32_t		u_int;
++#endif /* HAVE_U_INT */
++#ifndef HAVE_U_CHAR
++#include <stdint.h>
++typedef uint8_t		u_char;
++#endif /* HAVE_U_CHAR */
++#ifndef HAVE_U_QUAD_T
++#include <stdint.h>
++typedef uint64_t		u_quad_t;
++#endif /* HAVE_U_QUAD_T */
++#ifndef HAVE_QUAD_T
++#include <stdint.h>
++typedef int64_t		quad_t;
++#endif /* HAVE_QUAD_T */
++#ifndef HAVE_INDEX
++#define index			strchr
++#endif /* HAVE_INDEX */
++
+ typedef struct _pr {
+ 	struct _pr *nextpr;		/* next print unit */
+ #define	F_ADDRESS	0x001		/* print offset */
+--- util-linux-ng-2.14.1-orig/text-utils/rev.c	2008-05-29 01:01:02.000000000 +0200
++++ util-linux-ng-2.14.1-src/text-utils/rev.c	2008-09-27 19:02:41.000000000 +0200
+@@ -58,6 +58,8 @@
+ 
+ void usage(void);
+ 
++char *progname;
++
+ int
+ main(int argc, char *argv[])
+ {
+@@ -72,6 +74,7 @@ main(int argc, char *argv[])
+   setlocale(LC_ALL, "");
+   bindtextdomain(PACKAGE, LOCALEDIR);
+   textdomain(PACKAGE);
++  progname = argv[0];
+ 
+   while ((ch = getopt(argc, argv, "")) != -1)
+     switch(ch) {
+--- util-linux-ng-2.14.1-orig/text-utils/tailf.c	2008-05-29 01:01:02.000000000 +0200
++++ util-linux-ng-2.14.1-src/text-utils/tailf.c	2008-09-27 20:00:50.000000000 +0200
+@@ -45,6 +45,8 @@
+ 
+ #define DEFAULT_LINES  10
+ 
++char *progname;
++
+ static void
+ tailf(const char *filename, int lines)
+ {
+@@ -54,7 +56,7 @@ tailf(const char *filename, int lines)
+ 	FILE *str;
+ 	int  i;
+ 
+-	if (!(str = fopen(filename, "r")))
++	if (!(str = fopen(filename, "rb")))
+ 		err(EXIT_FAILURE, _("cannot open \"%s\" for read"), filename);
+ 
+ 	buf = malloc(lines * BUFSIZ);
+@@ -89,7 +91,7 @@ roll_file(const char *filename, off_t *s
+ 	int fd;
+ 	struct stat st;
+ 
+-	if (!(fd = open(filename, O_RDONLY)))
++	if (!(fd = open(filename, O_RDONLY | O_BINARY)))
+ 		err(EXIT_FAILURE, _("cannot open \"%s\" for read"), filename);
+ 
+ 	if (fstat(fd, &st) == -1)
+@@ -179,6 +181,8 @@ int main(int argc, char **argv)
+ 	bindtextdomain(PACKAGE, LOCALEDIR);
+ 	textdomain(PACKAGE);
+ 
++	progname = argv[0];
++
+ 	argc--;
+ 	argv++;
+ 
